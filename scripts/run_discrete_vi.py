@@ -1,3 +1,4 @@
+
 import numpy as np
 import torch
 
@@ -5,7 +6,7 @@ import matplotlib.pyplot as plt
 
 
 class Maze():
-    def __init__(self, size=(10, 10), n_obstacles=10):
+    def __init__(self, size=(10, 10), n_obstacles=6):
         self.maze = self.generate_random_maze(size, n_obstacles)
         self.maze_graph, self.connections = self.from_maze_to_connected_graph(self.maze)
 
@@ -39,10 +40,22 @@ class Maze():
         values = (values - np.min(values))/(np.max(values) - np.min(values))
 
         for i, (x, y) in enumerate(self.maze_graph):
-            maze_rgb[x, y] = [values[i], 0, 1]
+            maze_rgb[x, y] = [values[i], 0, 0]
 
         return maze_rgb
 
+    def visualize_path(self, path):
+        maze_rgb = np.stack([self.maze, self.maze, self.maze], axis=-1)
+
+        path_lenght = len(path)
+        for i in range(path_lenght):
+            node = path[i]
+            x, y = self.maze_graph[node]
+
+            c = (i/path_lenght)/2 + 0.7
+            maze_rgb[x, y] = [0, c, 0]
+
+        return maze_rgb
 
 
 class GraphValueIteration():
@@ -58,6 +71,20 @@ class GraphValueIteration():
 
         return self.values
 
+    def policy(self, node_idx, values):
+        value_map = np.einsum('ij,j->ij', self.connection_table,  values)
+        return np.argmax(value_map[node_idx])
+
+    def rollout(self, start_node, values, steps=20):
+        current_node = start_node
+        path = [current_node]
+        for t in range(steps):
+            current_node = self.policy(current_node, values)
+            path.append(current_node)
+            if path[-1] == path[-2]:
+                break
+        return path
+
 
 
 maze = Maze()
@@ -70,6 +97,12 @@ reward_function[ind] = 1
 vi = GraphValueIteration(connections, reward_function)
 values = vi.run()
 
-maze_img = maze.visualize_energy(values)
+start_node =  0
+path = vi.rollout(start_node, values)
+
+maze_values = maze.visualize_energy(values)
+maze_path = maze.visualize_path(path)
+
+maze_img = (maze_values + maze_path)/2
 plt.imshow(maze_img)
 plt.show()
