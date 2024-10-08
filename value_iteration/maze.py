@@ -1,14 +1,12 @@
-
-import numpy as np
 import torch
-
-import matplotlib.pyplot as plt
+import numpy as np
 
 
 class Maze():
-    def __init__(self, size=(10, 10), n_obstacles=10):
+    def __init__(self, size=(10, 10), n_obstacles=6):
         self.maze = self.generate_random_maze(size, n_obstacles)
         self.maze_graph, self.connections = self.from_maze_to_connected_graph(self.maze)
+        self.n_nodes = len(self.maze_graph)
 
     def generate_random_maze(self, size=(10, 10), n_obstacles=3):
         maze = np.zeros(size)
@@ -32,9 +30,13 @@ class Maze():
                     connection_table[i, j] = 1
         return list_of_free_cells, connection_table
 
+        print(list_of_free_cells)
+
     def visualize_energy(self, values):
 
         maze_rgb = np.stack([self.maze, self.maze, self.maze], axis=-1)
+
+        values = values[:self.n_nodes]
         values = (values - np.min(values))/(np.max(values) - np.min(values))
 
         for i, (x, y) in enumerate(self.maze_graph):
@@ -56,51 +58,28 @@ class Maze():
         return maze_rgb
 
 
-class GraphValueIteration():
-    def __init__(self, connection_table, reward_function):
-        self.connection_table = connection_table
-        self.reward_function = reward_function
+class BatchMaze():
+    def __init__(self, batch_size=32, size=(10, 10), n_obstacles=6):
+        self.batch_size = batch_size
+        self.mazes = [Maze(size, n_obstacles) for _ in range(batch_size)]
 
-    def run(self, n_iters=100):
-        self.values = np.zeros_like(self.reward_function)
+    def get_batch_connections(self):
+        connections = [m.connections for m in self.mazes]
+        # Each maze has a different number of nodes, so we need to pad the connections
+        max_nodes = max([c.shape[0] for c in connections])
+        connections_pad =  torch.zeros(self.batch_size, max_nodes, max_nodes)
+        for i in range(len(connections)):
+            n_nodes = connections[i].shape[0]
+            connections_pad[i, :n_nodes, :n_nodes] = torch.tensor(connections[i]).float()
+        return  connections_pad
 
-        for _ in range(n_iters):
-            self.values = self.reward_function + np.max(np.einsum('ij,j->ij', self.connection_table, self.values), axis=1)
-
-        return self.values
-
-    def policy(self, node_idx, values):
-        value_map = np.einsum('ij,j->ij', self.connection_table,  values)
-        return np.argmax(value_map[node_idx])
-
-    def rollout(self, start_node, values, steps=20):
-        current_node = start_node
-        path = [current_node]
-        for t in range(steps):
-            current_node = self.policy(current_node, values)
-            path.append(current_node)
-            if path[-1] == path[-2]:
-                break
-        return path
+    def batch_visualize_energy(self, values):
+        values_np = values.detach().numpy()
+        return [m.visualize_energy(v) for m, v in zip(self.mazes, values_np)]
 
 
+if __name__ == '__main__':
 
-maze = Maze()
-connections = maze.connections
-
-reward_function = np.zeros(connections.shape[0])
-ind = np.random.randint(0, connections.shape[0])
-reward_function[ind] = 1
-
-vi = GraphValueIteration(connections, reward_function)
-values = vi.run()
-
-start_node =  0
-path = vi.rollout(start_node, values)
-
-maze_values = maze.visualize_energy(values)
-maze_path = maze.visualize_path(path)
-
-maze_img = (maze_values + maze_path)/2
-plt.imshow(maze_img)
-plt.show()
+    batch_maze = BatchMaze()
+    con_batch = batch_maze.get_batch_connections()
+    print(con_batch.shape)
