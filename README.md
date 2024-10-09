@@ -15,3 +15,16 @@ conda activate valueiteration
 pip3 install torch torchvision torchaudio
 pip install -r requirements.txt
 ```
+
+### Examples
+
+Simple example in Numpy
+```bash
+python scripts/run_discrete_vi.py
+```
+
+Example solving multiple mazes in batch using Pytorch
+```bash
+python value_iteration/graph_value_iteration.py
+```
+
