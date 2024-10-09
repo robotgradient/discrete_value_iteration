@@ -5,6 +5,9 @@ Given a Maze, we transform it into a graph and solve a Value Iteration
 problem to find the shortest path to a target node.
 
 <img src="assets/solution.png" alt="solution" width="200" height="200"/>
+<img src="assets/solution.png" alt="solution" width="200" height="200"/>
+<img src="assets/solution.png" alt="solution" width="200" height="200"/>
+<img src="assets/solution.png" alt="solution" width="200" height="200"/>
 
 
 ### Installation
